@@ -3,3 +3,6 @@ unreads.txt
 bookList.csv
 bookList.json
 unreads.txt
+*.csv
+*.json
+unreads.txt
