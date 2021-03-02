@@ -221,7 +221,7 @@ def get_fresh_books():
 		#th.start()
 		#cnt+=1
 	#print(links)
-	with Pool(10) as p:
+	with Pool(8) as p:
 		fresh_books = p.map(parse,links)
 	return fresh_books
 
