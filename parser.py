@@ -6,6 +6,9 @@ import json
 import os.path
 import os
 from datetime import datetime
+#from threading import Thread
+#import time
+from multiprocessing import Pool
 
 
 
@@ -24,9 +27,6 @@ FILE_CSV = 'bookList.csv'
 
 FILE_JSON = 'bookList.json'
 
-
-
-
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.150 Safari/537.36 OPR/74.0.3911.107'
 
 HEADER = {
@@ -43,10 +43,17 @@ unreads = []
 
 
 def get_user_data(path, data):
+	"""
+		Function that gets username and password of user and insert them into dictionary
+
+		path - path to the login data FILE_CSV
+
+		data - container of obtained data
+	"""
 	if(os.path.isfile(path)):
 		with open(path, 'r') as file:
 			data = json.load(file)
-		if(len(data) == 0):
+		if(len(data) == 0 or (data['username'] == '' or data['password'] == '')):
 			username = str(input('Введите логин:'))
 			password = str(input('Введите пароль:'))
 
@@ -93,17 +100,27 @@ def parse_bookmarks():
 	save_files()
 
 
+
 def parse(url):
 	html = get_html(url)
 	if(html.status_code == 200):
-		fresh_books.append(get_content(html.text))
-		#
+		content = get_content(html.text)
+		#fresh_books.append(content)
+		return content
+
+
 	else:
 		print('Error')
+		return ''
+
 
 
 def get_content(html):
+	"""
+		Obtain title, volume and chapter from HTML.
 
+		HTML should be connected to grouple.co
+	"""
 	soup = BeautifulSoup(html,'html.parser')
 	item = soup.find('h4')
 	title = soup.find('span', class_='name').text
@@ -114,6 +131,7 @@ def get_content(html):
 		genChapters = list(genChapters)
 		volume = genChapters[0]
 		chapter = ''.join(genChapters[2:len(genChapters)]).replace(' ','')
+		#print(title)
 
 		return {
 			'title':title,
@@ -136,6 +154,11 @@ def get_content(html):
 
 
 def get_bookmarks_content(html):
+	"""
+		Recieve title, volume, chapter and link from user's bookmarks.
+
+		HTML should be connected to grouple.co
+	"""
 	soup = BeautifulSoup(html,'html.parser')
 	items = soup.find_all('tr' , class_= 'bookmark-row')
 
@@ -188,16 +211,26 @@ def save_files():
 
 
 def get_fresh_books():
-	cnt = 1
+	#cnt = 1
+	links = []
 	for book in books:
-		print('Parsing ' + str(cnt) + ' page')
-		parse(book['link'])
-		cnt+=1
+		links.append(book['link'])
+		#print('Parsing ' + str(cnt) + ' page')
+		#parse(book['link'])
+		#th = Thread(target = parse, args = (book['link'], ))
+		#th.start()
+		#cnt+=1
+	#print(links)
+	with Pool(10) as p:
+		fresh_books = p.map(parse,links)
+	return fresh_books
+
+
 
 
 def check_unreads():
 	unreads.clear()
-	get_fresh_books()
+	fresh_books = get_fresh_books()
 	for book in books:
 		for fresh_book in fresh_books:
 			if book['title'] == fresh_book['title']:
@@ -205,6 +238,7 @@ def check_unreads():
 					unreads.append("%s :: %s volume %s chapter => %s volume %s chapter" %(book['title'],book['volume'],book['chapter'],
 					fresh_book['volume'],fresh_book['chapter']))
 	save_unreads(unreads, UNREADS_PATH)
+	#print(unreads)
 
 
 def show_unreads():
@@ -217,9 +251,21 @@ def main():
 	USER_DATA = {}
 	USER_DATA = get_user_data(USER_PATH, USER_DATA)
 	response = session.post(LINK,data = USER_DATA)
+
 	parse_bookmarks()
+
+	#th1 = Thread(target = parse_bookmarks)
+	#th1.start()
 	#load_unreads(UNREADS_PATH)
+
+
 	check_unreads()
+
+	#th2 = Thread(target = check_unreads)
+	#th2.start()
+
+	#th1.join()
+	#th2.join()
 	show_unreads()
 
 
