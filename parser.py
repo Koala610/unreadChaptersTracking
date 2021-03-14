@@ -5,6 +5,7 @@ import csv
 import json
 import os.path
 import os
+import sqlite3
 from datetime import datetime
 #from threading import Thread
 #import time
@@ -42,6 +43,8 @@ fresh_books = []
 unreads = []
 
 
+
+
 def get_user_data(path, data):
 	"""
 		Function that gets username and password of user and insert them into dictionary
@@ -68,6 +71,21 @@ def get_user_data(path, data):
 		with open(data,'w+') as file:
 			json.dump({},file,indent=3)
 	return data
+
+
+def get_user_data_db(user_id,db_file):
+	db = sqlite3.connect(db_file)
+	cursor = db.cursor()
+	isExist = cursor.execute(f"SELECT * FROM subscriptions WHERE user_id = ? ",(user_id,)).fetchall()
+	username = ''
+	password = ''
+	if(isExist):
+		username = cursor.execute(f"SELECT username FROM subscriptions WHERE user_id = ?",(user_id,)).fetchone()[0]
+		password = cursor.execute(f"SELECT password FROM subscriptions WHERE user_id = ?",(user_id,)).fetchone()[0]
+		return {'username':username,'password':password}
+	else:
+		return {}
+
 
 
 
@@ -136,13 +154,13 @@ def get_content(html):
 		return {
 			'title':title,
 			'volume':volume,
-			'chapter':chapter,
+			'chapter':chapter
 		}
 	else:
 		return {
 			'title':title,
 			'volume': None,
-			'chapter': None,
+			'chapter': None
 		}
 
 
@@ -164,7 +182,9 @@ def get_bookmarks_content(html):
 
 	for item in items:
 		title = item.find('a',class_='site-element').nextSibling.attrs['data-title']
-		genChapters = item.find('a',class_='go-to-chapter').text.replace('-',' ')
+		linkComponent = item.find('a',class_='go-to-chapter')
+		chapterLink = linkComponent.attrs['href']
+		genChapters = linkComponent.text.replace('-',' ')
 		genChapters = list(genChapters)
 		bLink = item.find('a',class_='site-element').attrs['href']
 		volume = genChapters[0]
@@ -176,7 +196,8 @@ def get_bookmarks_content(html):
 			'title': title,
 			'volume':volume,
 			'chapter':chapter,
-			'link': bLink
+			'link': bLink,
+			'cLink':chapterLink
 
 		})
 
@@ -235,9 +256,12 @@ def check_unreads():
 		for fresh_book in fresh_books:
 			if book['title'] == fresh_book['title']:
 				if(book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter']):
+					fresh_book['link'] = book['cLink']
+					#print(fresh_book['cLink'])
 					unreads.append("%s :: %s volume %s chapter => %s volume %s chapter" %(book['title'],book['volume'],book['chapter'],
 					fresh_book['volume'],fresh_book['chapter']))
 	save_unreads(unreads, UNREADS_PATH)
+	return fresh_books
 	#print(unreads)
 
 
@@ -247,8 +271,15 @@ def show_unreads():
 
 
 
-def main():
+
+
+
+
+def main(user_id,db_path):
+
+
 	USER_DATA = {}
+	#USER_DATA = get_user_data(user_id,db_path)
 	USER_DATA = get_user_data(USER_PATH, USER_DATA)
 	response = session.post(LINK,data = USER_DATA)
 
@@ -259,14 +290,22 @@ def main():
 	#load_unreads(UNREADS_PATH)
 
 
-	check_unreads()
+	fresh_books = check_unreads()
 
 	#th2 = Thread(target = check_unreads)
 	#th2.start()
 
 	#th1.join()
 	#th2.join()
-	show_unreads()
+	#show_unreads()
+	"""
+	new_fresh_books = []
+	for fresh_book in fresh_books:
+		if 'link' in fresh_book:
+			new_fresh_books.append(fresh_book)"""
+
+
+	return unreads
 
 
 
@@ -276,4 +315,4 @@ def main():
 
 
 if __name__ == "__main__":
-	main()
+	main(335271283,'1.db')
