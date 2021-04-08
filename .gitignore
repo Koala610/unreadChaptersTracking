@@ -7,3 +7,4 @@ unreads.txt
 *.json
 unreads.txt
 config.py
+__pycache__
