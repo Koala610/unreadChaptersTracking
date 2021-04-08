@@ -6,3 +6,4 @@ unreads.txt
 *.csv
 *.json
 unreads.txt
+config.py
