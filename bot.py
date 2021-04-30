@@ -129,6 +129,7 @@ async def check_unreads(message : types.Message):
     parser = Parser(user_id,db_path)
     parser.parse_bookmarks()
     parser.check_unreads()
+    await message.answer(f'У вас {len(parser.unreads)} непрочитанных:')
     answer = ''
     cnt = 0
     prev = ''

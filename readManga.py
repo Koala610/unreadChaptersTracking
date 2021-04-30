@@ -173,8 +173,11 @@ class Parser:
                         fresh_book['volume'], fresh_book['chapter']) 
                         for book in self.books 
                         for fresh_book in self.fresh_books 
-                        if book['title'] == fresh_book['title'] and 
-                        (book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter'])]
+                        if book['title'] != None and book['volume'] != None and fresh_book['chapter'] != None and
+                        fresh_book['volume'] != None and
+                        book['title'] == fresh_book['title'] and 
+                        (book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter']) and
+                        len(fresh_book['chapter']) < 4]
 
         #print(self.unreads)
         #self.refresh_books()
