@@ -145,25 +145,21 @@ class Parser:
     		}
 
     def get_fresh_books(self):
-    	#cnt = 1
-    	links = []
-    	for book in self.books:
-    		links.append(book['link'])
-    		#print('Parsing ' + str(cnt) + ' page')
-    		#parse(book['link'])
-    		#th = Thread(target = parse, args = (book['link'], ))
-    		#th.start()
-    		#cnt+=1
-    	#print(links)
-    	with Pool(10) as p:
-    		self.fresh_books = p.map(self.parse,links)
-    	return self.fresh_books
+        links = [book['link'] for book in self.books]
+        """
+        for book in self.books:
+            links.append(book['link'])
+        """
+        with Pool(10) as p:
+            self.fresh_books = p.map(self.parse,links)
+
+        return self.fresh_books
 
 
     def check_unreads(self):
         self.unreads.clear()
         self.fresh_books = self.get_fresh_books()
-        for book in self.books:
+        """for book in self.books:
         	for fresh_book in self.fresh_books:
         		if book['title'] == fresh_book['title']:
         			if(book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter']):
@@ -171,13 +167,23 @@ class Parser:
         					#print(fresh_book['cLink'])
         				self.unreads.append("<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(fresh_book['link'],book['title'],book['volume'],book['chapter'],
         				fresh_book['volume'],fresh_book['chapter']))
+        """
+        self.unreads = ["<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(book['cLink'],
+                        book['title'], book['volume'], book['chapter'],
+                        fresh_book['volume'], fresh_book['chapter']) 
+                        for book in self.books 
+                        for fresh_book in self.fresh_books 
+                        if book['title'] == fresh_book['title'] and 
+                        (book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter'])]
+
+        #print(self.unreads)
         #self.refresh_books()
 
     def refresh_books(self):
-        new_fresh_books = []
-        for fresh_book in self.fresh_books:
+        new_fresh_books = [fresh_book for fresh_book in fresh_books if 'link' in fresh_book]
+        """for fresh_book in self.fresh_books:
             if 'link' in fresh_book:
-                new_fresh_books.append(fresh_book)
+                new_fresh_books.append(fresh_book)"""
         self.fresh_books.clear()
         self.fresh_books = new_fresh_books.copy()
 
