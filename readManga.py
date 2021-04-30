@@ -6,6 +6,7 @@ import json
 import os.path
 import os
 import sqlite3
+import threading
 from datetime import datetime
 #from threading import Thread
 #import time
@@ -73,12 +74,12 @@ class Parser:
         soup = BeautifulSoup(html,'html.parser')
         items = soup.find_all('tr' , class_= 'bookmark-row')
         for item in items:
-            title = item.find('a',class_='site-element').nextSibling.attrs['data-title']
+            title = item.find('a', class_='site-element').nextSibling.attrs['data-title']
             linkComponent = item.find('a',class_='go-to-chapter')
             chapterLink = linkComponent.attrs['href']
-            genChapters = linkComponent.text.replace('-',' ')
+            genChapters = linkComponent.text.replace('-', ' ')
             genChapters = list(genChapters)
-            bLink = item.find('a',class_='site-element').attrs['href']
+            bLink = item.find('a', class_='site-element').attrs['href']
             volume = genChapters[0]
             chapter = ''.join(genChapters[2:len(genChapters)]).replace(' ', '')
 
@@ -106,7 +107,6 @@ class Parser:
     	html = self.get_html(url)
     	if(html.status_code == 200):
     		content = self.get_content(html.text)
-    		#fresh_books.append(content)
     		return content
 
 
@@ -115,43 +115,45 @@ class Parser:
     		return ''
 
     def get_content(self,html):
-    	"""
-    		Obtain title, volume and chapter from HTML.
+        soup = BeautifulSoup(html,'html.parser')
+        item = soup.find('h4')
+        title = soup.find('span', class_='name').text
+        chapter_link = soup.find('a', class_='chapter-link btn btn-outline-primary btn-lg btn-block read-first-chapter').attrs['href']
+        if(item and item.find('a')):
+            genChapters = item.find('a').text.replace('Читать ','')
+            genChapters = genChapters.replace('-','')
+            genChapters = genChapters.replace(' новое', '')
+            genChapters = list(genChapters)
+            volume = genChapters[0]
+            chapter = ''.join(genChapters[2:len(genChapters)]).replace(' ','')
 
-    		HTML should be connected to grouple.co
-    	"""
-    	soup = BeautifulSoup(html,'html.parser')
-    	item = soup.find('h4')
-    	title = soup.find('span', class_='name').text
-    	if(item and item.find('a')):
-    		genChapters = item.find('a').text.replace('Читать ','')
-    		genChapters = genChapters.replace('-','')
-    		genChapters = genChapters.replace(' новое', '')
-    		genChapters = list(genChapters)
-    		volume = genChapters[0]
-    		chapter = ''.join(genChapters[2:len(genChapters)]).replace(' ','')
-    		#print(title)
 
-    		return {
-    			'title':title,
-    			'volume':volume,
-    			'chapter':chapter
-    		}
-    	else:
-    		return {
-    			'title':title,
-    			'volume': None,
-    			'chapter': None
-    		}
+        else:
+            
+            volume, chapter = self.get_chapter_directly(self.get_html('http://readmanga.live' + chapter_link).text)
+
+        return {
+                'title':title,
+                'volume': volume,
+                'chapter':chapter
+            }
+
+            
+
+
+    def get_chapter_directly(self,html):
+        soup = BeautifulSoup(html,'html.parser')
+        last_chapter = soup.find('option').text.split(' - ')
+        return last_chapter[0], last_chapter[1]
 
     def get_fresh_books(self):
         links = [book['link'] for book in self.books]
-        """
-        for book in self.books:
-            links.append(book['link'])
-        """
-        with Pool(10) as p:
+        
+        with Pool(int(len(links)/5)) as p:
             self.fresh_books = p.map(self.parse,links)
+        
+
+
 
         return self.fresh_books
 
@@ -159,36 +161,30 @@ class Parser:
     def check_unreads(self):
         self.unreads.clear()
         self.fresh_books = self.get_fresh_books()
-        """for book in self.books:
-        	for fresh_book in self.fresh_books:
-        		if book['title'] == fresh_book['title']:
-        			if(book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter']):
-        				fresh_book['link'] = book['cLink']
-        					#print(fresh_book['cLink'])
-        				self.unreads.append("<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(fresh_book['link'],book['title'],book['volume'],book['chapter'],
-        				fresh_book['volume'],fresh_book['chapter']))
+        is_done = False
         """
-        self.unreads = ["<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(book['cLink'],
-                        book['title'], book['volume'], book['chapter'],
-                        fresh_book['volume'], fresh_book['chapter']) 
-                        for book in self.books 
-                        for fresh_book in self.fresh_books 
-                        if book['title'] != None and book['volume'] != None and fresh_book['chapter'] != None and
-                        fresh_book['volume'] != None and
-                        book['title'] == fresh_book['title'] and 
-                        (book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter']) and
-                        len(fresh_book['chapter']) < 4]
+        for book in self.books:
+            if book['title'] != None and book['volume'] != None and book['chapter'] != None:
+                for fresh_book in self.fresh_books:
+                    if book['title'] == fresh_book['title']:
+                        if(book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter']):
+                            self.unreads.append("<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(book['cLink'],book['title'],book['volume'],book['chapter'],
+                                fresh_book['volume'],fresh_book['chapter']))
+                            break
+        """
+        self.unreads = ["<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(book['cLink'], book['title'],
+                        book['volume'], book['chapter'], fresh_book['volume'], fresh_book['chapter'])
+                        for book in self.books
+                            if book['title'] != None and book['volume'] != None and book['chapter'] != None
+                        for fresh_book in self.fresh_books
+                            if book['title'] == fresh_book['title'] and
+                        (book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter'])]
 
         #print(self.unreads)
         #self.refresh_books()
 
     def refresh_books(self):
-        new_fresh_books = [fresh_book for fresh_book in fresh_books if 'link' in fresh_book]
-        """for fresh_book in self.fresh_books:
-            if 'link' in fresh_book:
-                new_fresh_books.append(fresh_book)"""
-        self.fresh_books.clear()
-        self.fresh_books = new_fresh_books.copy()
+        self.fresh_books = [fresh_book for fresh_book in fresh_books if 'link' in fresh_book]
 
 
 
