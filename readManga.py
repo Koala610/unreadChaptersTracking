@@ -77,11 +77,10 @@ class Parser:
             title = item.find('a', class_='site-element').nextSibling.attrs['data-title']
             linkComponent = item.find('a',class_='go-to-chapter')
             chapterLink = linkComponent.attrs['href']
-            genChapters = linkComponent.text.replace('-', ' ')
-            genChapters = list(genChapters)
+            genChapters = linkComponent.text.split('-')
             bLink = item.find('a', class_='site-element').attrs['href']
             volume = genChapters[0]
-            chapter = ''.join(genChapters[2:len(genChapters)]).replace(' ', '')
+            chapter = genChapters[1]
 
 
             self.books.append({
@@ -120,12 +119,11 @@ class Parser:
         title = soup.find('span', class_='name').text
         chapter_link = soup.find('a', class_='chapter-link btn btn-outline-primary btn-lg btn-block read-first-chapter').attrs['href']
         if(item and item.find('a')):
-            genChapters = item.find('a').text.replace('Читать ','')
-            genChapters = genChapters.replace('-','')
-            genChapters = genChapters.replace(' новое', '')
-            genChapters = list(genChapters)
+            linkComponent = item.find('a',class_='go-to-chapter')
+            genChapters = item.find('a').text.replace('Читать ','').replace(' новое', '')
+            genChapters = genChapters.split(' - ') if genChapters.find('-') != -1 else genChapters.split(' ')
             volume = genChapters[0]
-            chapter = ''.join(genChapters[2:len(genChapters)]).replace(' ','')
+            chapter = genChapters[1]
 
 
         else:
@@ -180,8 +178,6 @@ class Parser:
                             if book['title'] == fresh_book['title'] and
                         (book['volume'] != fresh_book['volume'] or book['chapter'] != fresh_book['chapter'])]
 
-        #print(self.unreads)
-        #self.refresh_books()
 
     def refresh_books(self):
         self.fresh_books = [fresh_book for fresh_book in fresh_books if 'link' in fresh_book]
