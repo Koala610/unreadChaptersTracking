@@ -36,6 +36,7 @@ class Parser:
     	'user-agent' : USER_AGENT
     }
     USER_DATA = {}
+    DOMAINS = ['http://readmanga.live', "https://mintmanga.live"]
     books = []
 
     fresh_books = []
@@ -127,8 +128,14 @@ class Parser:
 
 
         else:
+            dom = ""
+            for domain in self.DOMAINS:
+                html = self.get_html(domain+chapter_link)
+                if(html.status_code == 200):
+                    dom = domain
+                    break
             
-            volume, chapter = self.get_chapter_directly(self.get_html('http://readmanga.live' + chapter_link).text)
+            volume, chapter = self.get_chapter_directly(self.get_html(dom + chapter_link).text)
 
         return {
                 'title':title,
