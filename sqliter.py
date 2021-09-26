@@ -9,9 +9,17 @@ class SQLighter:
         with self.connection:
             return self.cursor.execute(f"SELECT id FROM subscriptions WHERE status = ?",(status,)).fetchall()
 
+    def get_users_nicknames(self):
+        result = self.cursor.execute("SELECT username, user_id FROM subscriptions").fetchall()
+        return result
+
     def user_exists(self,user_id):
         result = self.cursor.execute(f"SELECT * FROM subscriptions WHERE user_id = ? ",(user_id,)).fetchall()
         return bool(len(result))
+
+    def check_if_admin(self, user_id):
+        result = self.cursor.execute(f"SELECT isAdmin FROM subscriptions WHERE user_id = ? ",(user_id,)).fetchall()
+        return result[0][0]
 
     def account_exists(self,user_id):
         result = self.cursor.execute(f"SELECT hasAccount FROM subscriptions WHERE user_id = ? ",(user_id,)).fetchall()
@@ -51,11 +59,11 @@ class SQLighter:
 
 
 def main():
-    user_id = '335271283'
     db = SQLighter('1.db')
-    db.add_username(user_id, "123")
+    print(db.get_users_nicknames())
+    #db.add_username(user_id, "123")
     #print(db.get_subscriptions()[0][0])
-    #print(db.account_exists(user_id))
+    #print(db.check_if_admin(user_id))
     #db.update_subscription(user_id,False)
     #db.delete_user(user_id)
     db.close()
