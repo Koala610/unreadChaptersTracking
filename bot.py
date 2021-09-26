@@ -4,6 +4,8 @@ import logging
 from aiogram import Bot, Dispatcher, executor, types
 
 from sqliter import SQLighter
+from readManga import Parser
+from markups import *
 
 from aiogram.dispatcher.filters import Command
 
@@ -11,7 +13,6 @@ from aiogram.dispatcher import FSMContext
 
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
-from importlib import reload
 
 from states import AccStates
 
@@ -25,6 +26,13 @@ storage = MemoryStorage()
 bot = Bot(token = config.API_TOKEN)
 dp = Dispatcher(bot, storage = storage)
 
+commands_str ="""
+/addAccount - Добавить аккаунт readManga
+/checkUnreads - Проверить не прочитанные главы
+/changeAccount - Изменить аккаунт
+/bookmarks - Вывести всю мангу из раздела 'В процессе' с ссылками
+"""
+
 #echo
 """
 @dp.message_handler()
@@ -36,134 +44,93 @@ async def echo(message : types.Message):
 db_path = '1.db'
 db = SQLighter(db_path)
 
-#subscribe activation
-@dp.message_handler(commands=['subscribe'])
-async def subscribe(message: types.Message):
+
+def split_list(l, num):
+    x = 0
+    n = len(l)
+    for i in range(x, n, num):
+        yield l[x:x+num]
+        x += num
+
+
+async def add_account(message):
     user_id = message.from_user.id
-    print(db.subscriber_exists(user_id))
-    if(not db.subscriber_exists(user_id)):
-        db.add_subscriber(user_id)
-        await message.answer("Успешно...")
+    if(db.account_exists(user_id)):
+
+        await message.answer('У вас уже есть аккаунт')
     else:
-        await message.answer("Вы уже зарегистрированны")
+        await message.answer('Введите ваш логин на readManga или введите /exit для отмены')
+        await AccStates.login.set()
 
 
 
-#unsubscribe
-
-@dp.message_handler(commands=['unsubscribe'])
-async def unsubscribe(message : types.Message):
-    user_id = message.from_user.id
-    if(not db.subscriber_exists(user_id)):
-        db.add_subscriber(user_id,False)
-        await message.answer('Вы итак не подписаны')
-    else:
-        db.update_subscription(user_id,False)
-        await message.answer('Вы отписались')
-
-    await message.answer("Успешно...")
-
-@dp.message_handler(Command(commands = ["addAccount",'changeAccount']),state=None)
-async def unsubscribe(message : types.Message):
-    user_id = message.from_user.id
-    isExist = db.subscriber_exists(user_id)
-    if message.text.replace(" ",'') == '/addAccount':
-        if(isExist):
-            if(db.account_exists(user_id)):
-
-                await message.answer('У вас уже есть аккаунт')
-            else:
-                await message.answer('Введите логин и пароль разделённые пробелом или введите /exit для отмены')
-                await AccStates.first()
-    elif message.text.replace(" ",'') == '/changeAccount':
-        await message.answer('Введите логин и пароль разделённые пробелом или введите /exit для отмены')
-        await AccStates.first()
-
-
-
-
-
-
-
-
-@dp.message_handler(state = AccStates.data)
+@dp.message_handler(state = AccStates.login)
 async def add_username(message : types.Message,state:FSMContext):
     if message.text.replace(' ','') == '/exit':
         await state.finish()
         await message.answer('Отменено!')
-        return
+        return -1
     else:
 
         user_id = message.from_user.id
-        text = message.text
-        data = re.split('\s',text)
-        await state.update_data(text = text)
+        nickname = message.text
+        db.add_username(user_id, nickname)
+        await bot.send_message(user_id, 'Введите ваш пароль на readManga или введите /exit для отмены')
+        await AccStates.password.set()
 
-        db.add_account(user_id,data[0],data[1])
-        await message.answer('Удачно!')
+@dp.message_handler(state = AccStates.password)
+async def add_username(message : types.Message,state:FSMContext):
+    if message.text.replace(' ','') == '/exit':
+        await state.finish()
+        await message.answer('Отменено!')
+        return -1
+    else:
+        user_id = message.from_user.id
+        password = message.text
+        db.add_password(user_id, password)
+        db.add_account(user_id)
+        db.commit()
+        await bot.send_message(user_id, 'Успешно!', reply_markup = main_menu)
         await state.finish()
 
 
+        
 
 
-
-@dp.message_handler(commands = ['checkUnreads'])
-async def check_unreads(message : types.Message):
+async def check_unreads(message):
     await message.answer('Пожалуйста подождите...')
-    from readManga import Parser
     user_id = message.from_user.id
-
-    isExist = db.subscriber_exists(user_id)
-    if(isExist):
-        if(db.account_exists(user_id)):
-
-            pass
-        else:
-            await message.answer('Вы не добавили аккаунт!')
-            return
-    else:
-        await message.answer('Вы не подписались!')
-        return
-
+    if(not db.account_exists(user_id)):
+        await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup = cng_acc_menu)
+        return -1
 
     parser = Parser(user_id,db_path)
-    parser.parse_bookmarks()
     parser.check_unreads()
     await message.answer(f'У вас {len(parser.unreads)} непрочитанных:')
-    answer = ''
-    cnt = 0
-    prev = ''
-    for unread in parser.unreads:
-        if prev != unread:
+    splited_unreads = split_list(parser.unreads, 20)
+    for l in splited_unreads:
+        answer = ''
+        for unread in l:
             answer += unread + '\n'
-            cnt += 1
-            prev = unread
-        if cnt > 20:
-            await message.answer(answer,parse_mode ='HTML')
-            answer = ''
-            cnt = 0
-
-    if len(answer) > 0:
-        await message.answer(answer,parse_mode ='HTML')
+        await bot.send_message(message.from_user.id, answer, parse_mode = 'HTML')
     parser.unreads.clear()
     parser.books.clear()
     parser.fresh_books.clear()
 
 
 
-@dp.message_handler(commands = ['commands'])
-async def show_commands(message : types.Message):
-    res = """
-    /subscribe - Регистрация
-/unsubscribe - 0тписаться
-/addAccount - Добавить аккаунт readManga
-/checkUnreads - Проверить не прочитанные главы
-/changeAccount - Изменить аккаунт
-/bookmarks - Вывести всю мангу из раздела 'В процессе' с ссылками
-    """
-
-    await message.answer(res)
-
+@dp.message_handler(commands = ['start'])
+async def start_work(message : types.Message):
+    user_id = message.from_user.id
+    if(not db.user_exists(user_id)):
+        try:
+            db.add_user(user_id)
+        except:
+            await message.answer("Ошибка...")
+            return -1
+        await bot.send_message(message.from_user.id, 'Добро пожаловать!', reply_markup = main_menu)
+    else:
+        await bot.send_message(message.from_user.id, "Вы уже вошли...", reply_markup = main_menu)
 
 @dp.message_handler(commands = ['support'])
 async def show_supports(message : types.Message):
@@ -176,48 +143,51 @@ async def show_supports(message : types.Message):
     await message.answer(res)
 
 
-@dp.message_handler(commands = ['bookmarks'])
-async def show_books(message : types.Message):
-    await message.answer('Пожалуйста подождите...')
-    res = ''
-
-    from readManga import Parser
-
+async def show_books(message):
     user_id = message.from_user.id
+    if(not db.account_exists(user_id)):
+        await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup = cng_acc_menu)
+        return -1
 
-    isExist = db.subscriber_exists(user_id)
-    if(isExist):
-        if(db.account_exists(user_id)):
-
-            pass
-        else:
-            await message.answer('Вы не добавили аккаунт!')
-            return
-    else:
-        await message.answer('Вы не подписались!')
-        return
-
+    await message.answer('Пожалуйста подождите...')
     parser = Parser(user_id,db_path)
-
-    parser.parse_bookmarks()
-    cnt = 0
-    for book in parser.books:
-        res += '<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n'
-        cnt+=1
-        if cnt > 30:
-            await message.answer(res, parse_mode ='HTML')
-            res = ''
-            cnt = 0
-    if len(res) > 0:
-        await message.answer(res, parse_mode ='HTML')
+    bookmarks = parser.get_html_bookmarks()
+    splited_bookmarks = split_list(bookmarks, 35)
+    for l in splited_bookmarks:
+        answer = ''
+        for book in l:
+            answer += book
+        await bot.send_message(message.from_user.id, answer, parse_mode = "HTML")
     parser.unreads.clear()
     parser.books.clear()
     parser.fresh_books.clear()
 
+async def show_menu(message):
+    await bot.send_message(message.from_user.id, "Меню:", reply_markup =main_menu)
+
+async def show_settings(message):
+    await bot.send_message(message.from_user.id, "Настройки:", reply_markup =settings_menu)
 
 
 
+command_switch = {
+    '/changeAccount' : add_account,
+    '📝 Изменить аккаунт': add_account,
+    '/checkUnreads': check_unreads,
+    '📒 Вывести недочитанные' : check_unreads,
+    '🔖 Вывести закладки': show_books,
+    '/menu' : show_menu,
+    '📋 Меню': show_menu,
+    '⚙️ Настройки': show_settings,
+    '/settings': show_settings
+}
 
+@dp.message_handler()
+async def handle(message : types.Message):
+    try:
+        await command_switch[message.text](message)
+    except KeyError:
+        pass
 
 
 

@@ -9,17 +9,21 @@ class SQLighter:
         with self.connection:
             return self.cursor.execute(f"SELECT id FROM subscriptions WHERE status = ?",(status,)).fetchall()
 
-    def subscriber_exists(self,user_id):
+    def user_exists(self,user_id):
         result = self.cursor.execute(f"SELECT * FROM subscriptions WHERE user_id = ? ",(user_id,)).fetchall()
         return bool(len(result))
 
     def account_exists(self,user_id):
         result = self.cursor.execute(f"SELECT hasAccount FROM subscriptions WHERE user_id = ? ",(user_id,)).fetchall()
-        return bool(result[0][0])
+        try:
+            return bool(result[0][0])
+        except IndexError:
+            return False
 
-    def add_subscriber(self,user_id,status = True):
+    def add_user(self,user_id):
         with self.connection:
-            return self.cursor.execute(f"INSERT INTO subscriptions (user_id,status) VALUES (?,?)",(user_id,status))
+            return self.cursor.execute(f"INSERT INTO subscriptions (user_id) VALUES (?)",(user_id,))
+        self.commit()
 
     def add_username(self,user_id,username):
         self.cursor.execute(f"UPDATE subscriptions SET username = ? WHERE user_id = ?",(username,user_id))
@@ -27,9 +31,7 @@ class SQLighter:
     def add_password(self,user_id,password):
         self.cursor.execute(f"UPDATE subscriptions SET password = ? WHERE user_id = ?",(password,user_id))
 
-    def add_account(self,user_id,username,password):
-        self.add_username(user_id,username)
-        self.add_password(user_id,password)
+    def add_account(self,user_id):
         self.cursor.execute(f"UPDATE subscriptions SET hasAccount = ? WHERE user_id = ?",(True,user_id))
         self.commit()
 
@@ -51,12 +53,11 @@ class SQLighter:
 def main():
     user_id = '335271283'
     db = SQLighter('1.db')
-    #db.add_subscriber(user_id)
+    db.add_username(user_id, "123")
     #print(db.get_subscriptions()[0][0])
-    print(db.account_exists(user_id))
+    #print(db.account_exists(user_id))
     #db.update_subscription(user_id,False)
     #db.delete_user(user_id)
-    db.commit()
     db.close()
 
 if __name__ == '__main__':
