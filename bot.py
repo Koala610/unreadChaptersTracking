@@ -55,12 +55,8 @@ def split_list(l, num):
 
 async def add_account(message):
     user_id = message.from_user.id
-    if(db.account_exists(user_id)):
-
-        await message.answer('У вас уже есть аккаунт')
-    else:
-        await message.answer('Введите ваш логин на readManga или введите /exit для отмены')
-        await AccStates.login.set()
+    await message.answer('Введите ваш логин на readManga или введите /exit для отмены')
+    await AccStates.login.set()
 
 
 
