@@ -5,6 +5,5 @@ unreads.txt
 *.csv
 *.json
 unreads.txt
-config.py
 __pycache__
 login_data.json
