@@ -10,7 +10,7 @@ class SQLighter:
             return self.cursor.execute(f"SELECT id FROM subscriptions WHERE status = ?",(status,)).fetchall()
 
     def get_users_nicknames(self):
-        result = [user for user in self.cursor.execute("SELECT username, user_id FROM subscriptions").fetchall() if user[0] != None and if user[1] != None]
+        result = [user for user in self.cursor.execute("SELECT username, user_id FROM subscriptions").fetchall() if user[0] != None and user[1] != None]
         return result
 
     def user_exists(self,user_id):
