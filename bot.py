@@ -1,22 +1,22 @@
 import config
 import logging
-
-from aiogram import Bot, Dispatcher, executor, types
+import os
+import re
 
 from sqliter import SQLighter
 from readManga import Parser
 from markups import *
+from states import AccStates
 
+from aiogram import Bot, Dispatcher, executor, types
 from aiogram.dispatcher.filters import Command
-
 from aiogram.dispatcher import FSMContext
-
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 
-from states import AccStates
 
-import re
+
+
 
 #уровень логов
 logging.basicConfig(level = logging.INFO)
@@ -40,9 +40,12 @@ async def echo(message : types.Message):
     await message.answer(message.text)
 """
 
+
+
+
 #database
-db_path = '1.db'
-db = SQLighter(db_path)
+db_link = os.getenv('JAWSDB_URL')
+db = SQLighter(db_link)
 
 
 def split_list(l, num):
@@ -100,7 +103,7 @@ async def check_unreads(message):
         await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup = cng_acc_menu)
         return -1
 
-    parser = Parser(user_id,db_path)
+    parser = Parser(user_id, db)
     parser.check_unreads()
     await message.answer(f'У вас {len(parser.unreads)} непрочитанных:')
     splited_unreads = split_list(parser.unreads, 20)
@@ -124,9 +127,9 @@ async def start_work(message : types.Message):
         except:
             await message.answer("Ошибка...")
             return -1
-        await bot.send_message(message.from_user.id, 'Добро пожаловать!', reply_markup = main_menu)
+        await bot.send_message(user_id, 'Добро пожаловать!', reply_markup = main_menu)
     else:
-        await bot.send_message(message.from_user.id, "Вы уже вошли...", reply_markup = main_menu)
+        await bot.send_message(user_id, "Вы уже вошли...", reply_markup = main_menu)
 
 
 @dp.message_handler(commands = ['admin'])
@@ -160,7 +163,7 @@ async def show_books(message):
         return -1
 
     await message.answer('Пожалуйста подождите...')
-    parser = Parser(user_id,db_path)
+    parser = Parser(user_id,db)
     bookmarks = parser.get_html_bookmarks()
     splited_bookmarks = split_list(bookmarks, 35)
     for l in splited_bookmarks:

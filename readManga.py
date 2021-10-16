@@ -52,12 +52,12 @@ class Parser:
 
     r_num = 0
 
-    def __init__(self,user_id,db_file):
+    def __init__(self, user_id, db):
         """
             Инициализация
         """
         self.user_id = user_id
-        self.db_file = db_file
+        self.db = db
         self.USER_DATA = self.get_user_data()
         self.USER_DATA
         self.session.post(self.LINK,data = self.USER_DATA, headers=self.HEADER)
@@ -75,13 +75,11 @@ class Parser:
         """
             Функция получает данных с базы данных и их возвращение
         """
-        db = sqlite3.connect(self.db_file)
-        cursor = db.cursor()
-        isExist = cursor.execute(f"SELECT * FROM subscriptions WHERE user_id = ? ",(self.user_id,)).fetchall()
+        isExist = self.db.user_exists(self.user_id)
 
         if(isExist):
-        	self.username = cursor.execute(f"SELECT username FROM subscriptions WHERE user_id = ?",(self.user_id,)).fetchone()[0]
-        	self.password = cursor.execute(f"SELECT password FROM subscriptions WHERE user_id = ?",(self.user_id,)).fetchone()[0]
+        	self.username = self.db.get_username(self.user_id)
+        	self.password = self.db.get_password(self.user_id)
         	return {'username':self.username,'password':self.password}
         else:
         	return {}
@@ -127,13 +125,11 @@ class Parser:
 
             })
 
-        return self.books
-
 
     def parse_bookmarks(self):
         html = self.get_html(self.BOOKMARKS_URL)
         if(html.status_code == 200):
-            self.books = self.get_bookmarks_content(html.text)
+            self.get_bookmarks_content(html.text)
         else:
             print('Error: Can not get bookmarks')
 
