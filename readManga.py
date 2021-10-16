@@ -11,7 +11,6 @@ from sqliter import SQLighter
 from bs4 import BeautifulSoup
 from datetime import datetime
 from multiprocessing import Pool
-from cachetools import cached, TTLCache
 
 
 
@@ -143,7 +142,7 @@ class Parser:
         response.text = response.read()
         return response
 
-    @cached(cache=TTLCache(maxsize=300, ttl=60))
+
     def parse(self, url):
         html = self.get_html(url)
         if(html.status_code == 200):
@@ -203,16 +202,18 @@ class Parser:
         last_chapter = soup.find('option').text.split(' - ')
         return last_chapter[0], last_chapter[1]
 
-    @cached(cache=TTLCache(maxsize=300, ttl=60))
+
     def get_fresh_books(self):
         links = [book['link'] for book in self.books]
+        self.fresh_books = [self.parse(link) for link in links]
         
-        try:
+        """try:
             with Pool(40) as p:
                 self.fresh_books = p.map(self.parse, links)
         except ValueError:
             print("Error: Books list is empty")
             self.fresh_books = []
+        """
         
 
         return self.fresh_books
