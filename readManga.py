@@ -1,15 +1,18 @@
 import requests
-from bs4 import BeautifulSoup
 import csv
 import json
 import os.path
 import os
 import sqlite3
 import threading
+import multiprocessing
+
+from sqliter import SQLighter
+from bs4 import BeautifulSoup
 from datetime import datetime
-#from threading import Thread
-#import time
 from multiprocessing import Pool
+
+
 
 
 
@@ -78,9 +81,9 @@ class Parser:
         isExist = self.db.user_exists(self.user_id)
 
         if(isExist):
-        	self.username = self.db.get_username(self.user_id)
-        	self.password = self.db.get_password(self.user_id)
-        	return {'username':self.username,'password':self.password}
+            self.username = self.db.get_username(self.user_id)
+            self.password = self.db.get_password(self.user_id)
+            return {'username':self.username,'password':self.password}
         else:
         	return {}
 
@@ -90,6 +93,8 @@ class Parser:
             получает ответ и возвращает его
         """
         r = self.session.get(url, headers = self.HEADER)
+        #r = self.read_buffer(r)
+        #pickles.dumps(r)
         return r
 
 
@@ -133,18 +138,22 @@ class Parser:
         else:
             print('Error: Can not get bookmarks')
 
-    def parse(self,url):
-    	html = self.get_html(url)
-    	if(html.status_code == 200):
+    def read_buffer(self, response):
+        response.text = response.read()
+        return response
+
+    def parse(self, url):
+        html = self.get_html(url)
+        if(html.status_code == 200):
             content = self.get_content(html.text)
             return content
 
 
-    	else:
+        else:
             print('Error: ' + str(html.status_code))
             return ''
 
-    def get_content(self,html):
+    def get_content(self, html):
         soup = BeautifulSoup(html,'html.parser')
         item = soup.find('h4')
         title = soup.find('span', class_='name').text
@@ -197,7 +206,7 @@ class Parser:
         links = [book['link'] for book in self.books]
         
         try:
-            with Pool(int(len(links)/5)) as p:
+            with Pool(40) as p:
                 self.fresh_books = p.map(self.parse, links)
         except ValueError:
             print("Error: Books list is empty")
@@ -241,8 +250,10 @@ class Parser:
 
 
 def main():
+    db_link = os.getenv('JAWSDB_URL')
+    db = SQLighter(db_link)
 
-    parser = Parser(335271283,'1.db')
+    parser = Parser(335271283, db)
 
 	#USER_DATA = get_user_data(user_id,db_path
     parser.check_unreads()
