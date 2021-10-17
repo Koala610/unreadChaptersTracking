@@ -104,7 +104,7 @@ async def check_unreads(message):
         return -1
 
     parser = Parser(user_id, db)
-    parser.check_unreads()
+    await parser.check_unreads()
     await message.answer(f'У вас {len(parser.unreads)} непрочитанных:')
     splited_unreads = split_list(parser.unreads, 20)
     for l in splited_unreads:

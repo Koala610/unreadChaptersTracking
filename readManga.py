@@ -251,14 +251,11 @@ class Parser:
         return "<a href = '%s'> %s :: %s volume %s chapter => %s volume %s chapter </a>"%(cLink, title, volume, chapter, f_volume,f_chapter)
 
 
-    def check_unreads(self):
+    async def check_unreads(self):
         if len(self.books) < 1:
             self.parse_bookmarks()
         self.unreads.clear()
-        try:
-            asyncio.run(self.get_fresh_books())
-        except Exception as e:
-            print(e)
+        await self.get_fresh_books()
         
         for book in self.books:
             for fresh_book in self.fresh_books:
@@ -280,7 +277,7 @@ def main():
     parser = Parser(335271283, db)
 
 	#USER_DATA = get_user_data(user_id,db_path
-    parser.check_unreads()
+    asyncio.run(parser.check_unreads())
 
     for unread in parser.unreads:
         print(unread + '\n')
