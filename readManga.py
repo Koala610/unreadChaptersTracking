@@ -6,6 +6,8 @@ import os
 import sqlite3
 import threading
 import multiprocessing
+import asyncio
+import aiohttp
 
 from sqliter import SQLighter
 from bs4 import BeautifulSoup
@@ -98,6 +100,25 @@ class Parser:
         return r
 
 
+
+    def get_bs_item_content(self, item):
+        link_container = item.find('a', class_="site-element")
+        title = link_container.nextSibling.attrs['data-title']
+        linkComponent = item.find('a',class_='go-to-chapter')
+        chapterLink = linkComponent.attrs['href']
+        genChapters = linkComponent.text.split('-')
+        bLink = item.find('a', class_='site-element').attrs['href']
+        volume = genChapters[0].replace(" ", '')
+        chapter = genChapters[1].replace(" ", '')
+        return {
+                'title': title,
+                'volume':volume,
+                'chapter':chapter,
+                'link': bLink,
+                'cLink':chapterLink
+                }
+
+
     def get_bookmarks_content(self,html):
         """Функция получает со страницы закладок:
             - Название
@@ -110,25 +131,7 @@ class Parser:
         """
         soup = BeautifulSoup(html,'html.parser')
         items = soup.find_all('tr' , class_= "bookmark-row")
-        for item in items:
-            link_container = item.find('a', class_="site-element")
-            title = link_container.nextSibling.attrs['data-title']
-            linkComponent = item.find('a',class_='go-to-chapter')
-            chapterLink = linkComponent.attrs['href']
-            genChapters = linkComponent.text.split('-')
-            bLink = item.find('a', class_='site-element').attrs['href']
-            volume = genChapters[0].replace(" ", '')
-            chapter = genChapters[1].replace(" ", '')
-
-
-            self.books.append({
-                'title': title,
-                'volume':volume,
-                'chapter':chapter,
-                'link': bLink,
-                'cLink':chapterLink
-
-            })
+        self.books = [self.get_bs_item_content(item) for item in items]
 
 
     def parse_bookmarks(self):
@@ -138,12 +141,24 @@ class Parser:
         else:
             print('Error: Can not get bookmarks')
 
-    def read_buffer(self, response):
-        response.text = response.read()
-        return response
 
 
-    def parse(self, url):
+    async def a_get_html(self, url):
+        async with aiohttp.ClientSession() as session:
+            r = await session.get(url=url, headers = self.HEADER)
+            return await r.text(), r.status
+
+
+    async def parse(self, url):
+        response_text, status_code = await self.a_get_html(url)
+        if status_code == 200:
+            self.fresh_books.append(self.get_content(response_text))
+        else:
+            print("Error. Can not get page")
+        
+        
+
+        """
         html = self.get_html(url)
         if(html.status_code == 200):
             content = self.get_content(html.text)
@@ -153,6 +168,7 @@ class Parser:
         else:
             print('Error: ' + str(html.status_code))
             return ''
+        """
 
     def get_content(self, html):
         soup = BeautifulSoup(html,'html.parser')
@@ -203,20 +219,22 @@ class Parser:
         return last_chapter[0], last_chapter[1]
 
 
-    def get_fresh_books(self):
+    async def get_fresh_books(self):
         links = [book['link'] for book in self.books]
-        self.fresh_books = [self.parse(link) for link in links]
+        tasks = []
+        for link in links:
+            task = asyncio.create_task(self.parse(link))
+            tasks.append(task)
+        await asyncio.gather(*tasks)
+
+        #self.fresh_books = [self.parse(link) for link in links]
         
         """try:
             with Pool(40) as p:
                 self.fresh_books = p.map(self.parse, links)
         except ValueError:
             print("Error: Books list is empty")
-            self.fresh_books = []
-        """
-        
-
-        return self.fresh_books
+            self.fresh_books = []"""
 
     def get_html_bookmarks(self):
         bookmarks = []
@@ -237,7 +255,10 @@ class Parser:
         if len(self.books) < 1:
             self.parse_bookmarks()
         self.unreads.clear()
-        self.fresh_books = self.get_fresh_books()
+        try:
+            asyncio.run(self.get_fresh_books())
+        except Exception as e:
+            print(e)
         
         for book in self.books:
             for fresh_book in self.fresh_books:
@@ -261,8 +282,8 @@ def main():
 	#USER_DATA = get_user_data(user_id,db_path
     parser.check_unreads()
 
-    """for unread in parser.unreads:
-        print(unread + '\n')"""
+    for unread in parser.unreads:
+        print(unread + '\n')
 
 
 
