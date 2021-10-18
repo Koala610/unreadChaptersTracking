@@ -192,7 +192,8 @@ command_switch = {
     '/menu' : show_menu,
     '📋 Меню': show_menu,
     '⚙️ Настройки': show_settings,
-    '/settings': show_settings
+    '/settings': show_settings,
+    '/start' : show_menu,
 }
 
 @dp.message_handler()
