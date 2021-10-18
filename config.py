@@ -1,7 +1,5 @@
-import sqlite3
-connection = sqlite3.connect('1.db')
-cursor = connection.cursor()
+import os
 
 
 
-API_TOKEN = cursor.execute("SELECT token FROM settings WHERE id = 0").fetchall()[0][0]
+API_TOKEN = os.getenv('API_TOKEN')
