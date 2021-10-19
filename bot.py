@@ -3,7 +3,7 @@ import logging
 import os
 import re
 
-from sqliter import SQLighter
+from user_requests import User_SQLighter
 from readManga import Parser
 from markups import *
 from states import AccStates
@@ -45,7 +45,7 @@ async def echo(message : types.Message):
 
 #database
 db_link = os.getenv('JAWSDB_URL')
-db = SQLighter(db_link)
+db = User_SQLighter(db_link)
 
 
 def split_list(l, num):
@@ -131,20 +131,6 @@ async def start_work(message : types.Message):
     else:
         await bot.send_message(user_id, "Вы уже вошли...", reply_markup = main_menu)
 
-
-@dp.message_handler(commands = ['admin'])
-async def show_admin_panel(message : types.Message):
-    user_id = message.from_user.id
-    if(db.check_if_admin(user_id)):
-        res = ''
-        for user in db.get_users_nicknames():
-            res += user[0] + " " + user[1]
-
-        await bot.send_message(message.from_user.id, res, reply_markup = main_menu)
-        
-    else:
-        await bot.send_message(message.from_user.id, "Вы не админ...", reply_markup = main_menu)
-
 @dp.message_handler(commands = ['support'])
 async def show_supports(message : types.Message):
     res = """
@@ -193,7 +179,6 @@ command_switch = {
     '📋 Меню': show_menu,
     '⚙️ Настройки': show_settings,
     '/settings': show_settings,
-    '/start' : show_menu,
 }
 
 @dp.message_handler()
