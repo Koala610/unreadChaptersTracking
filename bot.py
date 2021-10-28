@@ -33,13 +33,6 @@ commands_str ="""
 /bookmarks - Вывести всю мангу из раздела 'В процессе' с ссылками
 """
 
-#echo
-"""
-@dp.message_handler()
-async def echo(message : types.Message):
-    await message.answer(message.text)
-"""
-
 
 
 
@@ -112,9 +105,7 @@ async def check_unreads(message):
         for unread in l:
             answer += unread + '\n'
         await bot.send_message(message.from_user.id, answer, parse_mode = 'HTML')
-    parser.unreads.clear()
-    parser.books.clear()
-    parser.fresh_books.clear()
+    del parser
 
 
 
@@ -157,9 +148,7 @@ async def show_books(message):
         for book in l:
             answer += book
         await bot.send_message(message.from_user.id, answer, parse_mode = "HTML")
-    parser.unreads.clear()
-    parser.books.clear()
-    parser.fresh_books.clear()
+    del parser
 
 async def show_menu(message):
     await bot.send_message(message.from_user.id, "Меню:", reply_markup =main_menu)

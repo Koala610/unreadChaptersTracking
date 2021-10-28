@@ -9,7 +9,7 @@ import multiprocessing
 import asyncio
 import aiohttp
 
-from sqliter import SQLighter
+from user_requests import User_SQLighter
 from bs4 import BeautifulSoup
 from datetime import datetime
 from multiprocessing import Pool
@@ -46,7 +46,7 @@ class Parser:
 
     DOMAINS = ['https://readmanga.io', "https://mintmanga.live"]
 
-    books = []
+    books = ()
 
     fresh_books = []
 
@@ -131,7 +131,7 @@ class Parser:
         """
         soup = BeautifulSoup(html,'html.parser')
         items = soup.find_all('tr' , class_= "bookmark-row")
-        self.books = [self.get_bs_item_content(item) for item in items]
+        self.books = tuple([self.get_bs_item_content(item) for item in items])
 
 
     def parse_bookmarks(self):
@@ -155,20 +155,6 @@ class Parser:
             self.fresh_books.append(self.get_content(response_text))
         else:
             print("Error. Can not get page")
-        
-        
-
-        """
-        html = self.get_html(url)
-        if(html.status_code == 200):
-            content = self.get_content(html.text)
-            return content
-
-
-        else:
-            print('Error: ' + str(html.status_code))
-            return ''
-        """
 
     def get_content(self, html):
         soup = BeautifulSoup(html,'html.parser')
@@ -220,21 +206,13 @@ class Parser:
 
 
     async def get_fresh_books(self):
-        links = [book['link'] for book in self.books]
+        links = tuple([book['link'] for book in self.books])
         tasks = []
         for link in links:
             task = asyncio.create_task(self.parse(link))
             tasks.append(task)
         await asyncio.gather(*tasks)
-
-        #self.fresh_books = [self.parse(link) for link in links]
-        
-        """try:
-            with Pool(40) as p:
-                self.fresh_books = p.map(self.parse, links)
-        except ValueError:
-            print("Error: Books list is empty")
-            self.fresh_books = []"""
+        self.fresh_books = tuple(self.fresh_books)
 
     def get_html_bookmarks(self):
         bookmarks = []
@@ -242,7 +220,7 @@ class Parser:
             self.parse_bookmarks() 
         else:
             return []
-        bookmarks = ['<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n' for book in self.books]
+        bookmarks = tuple(['<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n' for book in self.books])
         return bookmarks
 
 
@@ -260,23 +238,31 @@ class Parser:
         for book in self.books:
             for fresh_book in self.fresh_books:
                 if book['title'] == fresh_book['title'] and ((book['volume']+book['chapter']) != (fresh_book['volume']+fresh_book['chapter'])):
-                    self.unreads.append(self.get_html_unread(book['cLink'],book['title'],book['volume'],book['chapter'],fresh_book['volume'],fresh_book['chapter']))
+                    self.unreads.append(
+                        self.get_html_unread(
+                            book['cLink'],
+                            book['title'],
+                            book['volume'],
+                            book['chapter'],
+                            fresh_book['volume'],
+                            fresh_book['chapter']
+                            )
+                        )
                     break
 
 
     def refresh_books(self):
-        self.fresh_books = [fresh_book for fresh_book in fresh_books if 'link' in fresh_book]
+        self.fresh_books = tuple([fresh_book for fresh_book in fresh_books if 'link' in fresh_book])
 
 
 
 
 def main():
     db_link = os.getenv('JAWSDB_URL')
-    db = SQLighter(db_link)
+    db = User_SQLighter(db_link)
 
     parser = Parser(335271283, db)
 
-	#USER_DATA = get_user_data(user_id,db_path
     asyncio.run(parser.check_unreads())
 
     for unread in parser.unreads:
