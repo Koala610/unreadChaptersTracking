@@ -206,7 +206,7 @@ class Parser:
             self.parse_bookmarks() 
         else:
             return []
-        bookmarks = tuple(['<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n' for book in self.books])
+        bookmarks = tuple(['<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n' for book in list(self.books.items())])
         return bookmarks
 
 
