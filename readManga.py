@@ -206,7 +206,7 @@ class Parser:
             self.parse_bookmarks() 
         else:
             return []
-        bookmarks = ['<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n' for book in list(self.books.items())]
+        bookmarks = tuple(['<a href = "%s"> %s </a>'%(book['cLink'],book['title']) + '\n' for book in list(self.books.values())])
         return bookmarks
 
 
@@ -227,7 +227,7 @@ class Parser:
                             self.books[fresh_book['title']]['chapter'],
                             fresh_book['volume'],
                             fresh_book['chapter']
-                            ) for _, fresh_book in self.fresh_books.items() if (self.books[fresh_book['title']]['volume']
+                            ) for fresh_book in self.fresh_books.values() if (self.books[fresh_book['title']]['volume']
                                 +self.books[fresh_book['title']]['chapter']) != (fresh_book['volume']+fresh_book['chapter'])]
         """
         for _, fresh_book in self.fresh_books.items():
