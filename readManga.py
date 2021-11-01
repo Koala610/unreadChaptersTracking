@@ -16,17 +16,6 @@ from multiprocessing import Pool
 
 
 
-
-
-
-
-
-
-
-
-
-
-
 class Parser:
     LINK = "https://grouple.co/login/authenticate?ttt"
 
@@ -46,9 +35,9 @@ class Parser:
 
     DOMAINS = ['https://readmanga.io', "https://mintmanga.live"]
 
-    books = ()
+    books = {}
 
-    fresh_books = []
+    fresh_books = {}
 
     unreads = []
 
@@ -95,8 +84,6 @@ class Parser:
             получает ответ и возвращает его
         """
         r = self.session.get(url, headers = self.HEADER)
-        #r = self.read_buffer(r)
-        #pickles.dumps(r)
         return r
 
 
@@ -131,7 +118,7 @@ class Parser:
         """
         soup = BeautifulSoup(html,'html.parser')
         items = soup.find_all('tr' , class_= "bookmark-row")
-        self.books = tuple([self.get_bs_item_content(item) for item in items])
+        self.books = {self.get_bs_item_content(item)['title']:self.get_bs_item_content(item) for item in items}
 
 
     def parse_bookmarks(self):
@@ -152,9 +139,23 @@ class Parser:
     async def parse(self, url):
         response_text, status_code = await self.a_get_html(url)
         if status_code == 200:
-            self.fresh_books.append(self.get_content(response_text))
+            content = self.get_content(response_text)
+            self.fresh_books[content['title']] = content
         else:
             print("Error. Can not get page")
+
+    def get_chapter_info_from_bs_item(self, item):
+        linkComponent = item.find('a',class_='go-to-chapter')
+        genChapters = item.find('a').text.replace('Читать ','').replace(' новое', '')
+        genChapters = genChapters.split(' - ') if genChapters.find('-') != -1 else genChapters.split(' ')
+        return genChapters[0], genChapters[1]
+
+    def get_true_domain(self, chapter_link):
+        for domain in self.DOMAINS:
+            html = self.get_html(domain+chapter_link)
+            if(html.status_code == 200):
+                return domain
+        return -1
 
     def get_content(self, html):
         soup = BeautifulSoup(html,'html.parser')
@@ -164,30 +165,19 @@ class Parser:
         mm_first_chapter_class = rm_first_chapter_class + " manga-mtr"
         chapter_block = soup.find('a', class_=rm_first_chapter_class)
         try:
-            chapter_link = soup.find('a', class_=rm_first_chapter_class).attrs['href'] if chapter_block != None else soup.find('a', class_=mm_first_chapter_class).attrs['href']
+            chapter_link = (soup.find('a', class_=rm_first_chapter_class).attrs['href']
+                            if chapter_block != None 
+                            else soup.find('a', class_=mm_first_chapter_class).attrs['href'])
         except AttributeError:
             return {
                 'title':title,
                 'volume': "No info",
                 'chapter': "No info"
             }
-
         if(item and item.find('a')):
-            linkComponent = item.find('a',class_='go-to-chapter')
-            genChapters = item.find('a').text.replace('Читать ','').replace(' новое', '')
-            genChapters = genChapters.split(' - ') if genChapters.find('-') != -1 else genChapters.split(' ')
-            volume = genChapters[0]
-            chapter = genChapters[1]
-
-
-        else: #Случай когда блок с ссылкой отсутсвует
-            dom = ""
-            for domain in self.DOMAINS:
-                html = self.get_html(domain+chapter_link)
-                if(html.status_code == 200):
-                    dom = domain
-                    break
-            
+            volume, chapter = self.get_chapter_info_from_bs_item(item)
+        else:
+            dom = self.get_true_domain(chapter_link) 
             volume, chapter = self.get_chapter_directly(self.get_html(dom + chapter_link).text)
 
         return {
@@ -196,9 +186,6 @@ class Parser:
                 'chapter':chapter.replace(" ", '')
             }
 
-            
-
-
     def get_chapter_directly(self,html):
         soup = BeautifulSoup(html,'html.parser')
         last_chapter = soup.find('option').text.split(' - ')
@@ -206,13 +193,12 @@ class Parser:
 
 
     async def get_fresh_books(self):
-        links = tuple([book['link'] for book in self.books])
+        links = tuple([book['link'] for _, book in self.books.items()])
         tasks = []
         for link in links:
             task = asyncio.create_task(self.parse(link))
             tasks.append(task)
         await asyncio.gather(*tasks)
-        self.fresh_books = tuple(self.fresh_books)
 
     def get_html_bookmarks(self):
         bookmarks = []
@@ -234,25 +220,30 @@ class Parser:
             self.parse_bookmarks()
         self.unreads.clear()
         await self.get_fresh_books()
-        
-        for book in self.books:
-            for fresh_book in self.fresh_books:
-                if book['title'] == fresh_book['title'] and ((book['volume']+book['chapter']) != (fresh_book['volume']+fresh_book['chapter'])):
-                    self.unreads.append(
-                        self.get_html_unread(
-                            book['cLink'],
-                            book['title'],
-                            book['volume'],
-                            book['chapter'],
+        self.unreads = [self.get_html_unread(
+                            self.books[fresh_book['title']]['cLink'],
+                            self.books[fresh_book['title']]['title'],
+                            self.books[fresh_book['title']]['volume'],
+                            self.books[fresh_book['title']]['chapter'],
                             fresh_book['volume'],
                             fresh_book['chapter']
-                            )
+                            ) for _, fresh_book in self.fresh_books.items() if (self.books[fresh_book['title']]['volume']
+                                +self.books[fresh_book['title']]['chapter']) != (fresh_book['volume']+fresh_book['chapter'])]
+        """
+        for _, fresh_book in self.fresh_books.items():
+            title = fresh_book['title']
+            book = self.books[fresh_book['title']]
+            if (book['volume']+book['chapter']) != (fresh_book['volume']+fresh_book['chapter']):
+                self.unreads.append(
+                    self.get_html_unread(
+                        book['cLink'],
+                        book['title'],
+                        book['volume'],
+                        book['chapter'],
+                        fresh_book['volume'],
+                        fresh_book['chapter']
                         )
-                    break
-
-
-    def refresh_books(self):
-        self.fresh_books = tuple([fresh_book for fresh_book in fresh_books if 'link' in fresh_book])
+                    )"""
 
 
 
@@ -262,7 +253,6 @@ def main():
     db = User_SQLighter(db_link)
 
     parser = Parser(335271283, db)
-
     asyncio.run(parser.check_unreads())
 
     for unread in parser.unreads:

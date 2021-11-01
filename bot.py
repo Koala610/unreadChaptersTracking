@@ -44,6 +44,7 @@ db = User_SQLighter(db_link)
 def split_list(l, num):
     x = 0
     n = len(l)
+    l = list(l.values()) if type(l) == dict else l
     for i in range(x, n, num):
         yield l[x:x+num]
         x += num
