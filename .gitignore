@@ -7,4 +7,5 @@ unreads.txt
 *.json
 unreads.txt
 __pycache__
+venv
 login_data.json
