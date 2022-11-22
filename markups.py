@@ -8,6 +8,9 @@ settings_btn = KeyboardButton("⚙️ Настройки")
 menu_btn = KeyboardButton("📋 Меню")
 
 
-main_menu = ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True, row_width = 1).add(unreads_btn,bookmarks_btn,settings_btn)
-cng_acc_menu = ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True, row_width = 1).add(cng_acc_btn, menu_btn)
-settings_menu = ReplyKeyboardMarkup(resize_keyboard = True, one_time_keyboard = True, row_width = 1).add(cng_acc_btn, menu_btn)
+main_menu = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True, row_width=1).add(
+    unreads_btn, bookmarks_btn, settings_btn)
+cng_acc_menu = ReplyKeyboardMarkup(
+    resize_keyboard=True, one_time_keyboard=True, row_width=1).add(cng_acc_btn, menu_btn)
+settings_menu = ReplyKeyboardMarkup(
+    resize_keyboard=True, one_time_keyboard=True, row_width=1).add(cng_acc_btn, menu_btn)

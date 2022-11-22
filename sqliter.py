@@ -1,8 +1,9 @@
 import pymysql
 
+
 class SQLighter:
 
-    def __init__(self,database_link):
+    def __init__(self, database_link):
         db_link = database_link
         s = db_link.split("mysql://")[1].split(':')
         db_settings = self.get_parsed_url(s)
@@ -11,20 +12,20 @@ class SQLighter:
 
     def check_connection(f):
         def wrapper(*args):
-            args[0].connection.ping(reconnect = True)
+            args[0].connection.ping(reconnect=True)
             return f(*args)
         return wrapper
 
     def connect_to_db(self, db_settings):
         try:
             connection = pymysql.connect(
-                host = db_settings['host'],
-                port = db_settings['port'],
-                user = db_settings['user'],
-                password = db_settings['password'],
-                database = db_settings['database'],
-                cursorclass = db_settings['cursorclass'],
-                )
+                host=db_settings['host'],
+                port=db_settings['port'],
+                user=db_settings['user'],
+                password=db_settings['password'],
+                database=db_settings['database'],
+                cursorclass=db_settings['cursorclass'],
+            )
 
         except Exception as ex:
             print(ex)
@@ -45,7 +46,6 @@ class SQLighter:
 
     def close(self):
         self.connection.close()
-
 
     @check_connection
     def commit(self):

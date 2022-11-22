@@ -14,19 +14,15 @@ from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 
+# уровень логов
+logging.basicConfig(level=logging.INFO)
 
-
-
-
-#уровень логов
-logging.basicConfig(level = logging.INFO)
-
-#init
+# init
 storage = MemoryStorage()
-bot = Bot(token = config.API_TOKEN)
-dp = Dispatcher(bot, storage = storage)
+bot = Bot(token=config.API_TOKEN)
+dp = Dispatcher(bot, storage=storage)
 
-commands_str ="""
+commands_str = """
 /addAccount - Добавить аккаунт readManga
 /checkUnreads - Проверить не прочитанные главы
 /changeAccount - Изменить аккаунт
@@ -34,9 +30,7 @@ commands_str ="""
 """
 
 
-
-
-#database
+# database
 db_link = os.getenv('JAWSDB_URL')
 db = User_SQLighter(db_link)
 
@@ -51,15 +45,13 @@ def split_list(l, num):
 
 
 async def add_account(message):
-    user_id = message.from_user.id
     await message.answer('Введите ваш логин на readManga или введите /exit для отмены')
     await AccStates.login.set()
 
 
-
-@dp.message_handler(state = AccStates.login)
-async def add_username(message : types.Message,state:FSMContext):
-    if message.text.replace(' ','') == '/exit':
+@dp.message_handler(state=AccStates.login)
+async def add_username(message: types.Message, state: FSMContext):
+    if message.text.replace(' ', '') == '/exit':
         await state.finish()
         await message.answer('Отменено!')
         return -1
@@ -71,9 +63,10 @@ async def add_username(message : types.Message,state:FSMContext):
         await bot.send_message(user_id, 'Введите ваш пароль на readManga или введите /exit для отмены')
         await AccStates.password.set()
 
-@dp.message_handler(state = AccStates.password)
-async def add_username(message : types.Message,state:FSMContext):
-    if message.text.replace(' ','') == '/exit':
+
+@dp.message_handler(state=AccStates.password)
+async def add_username(message: types.Message, state: FSMContext):
+    if message.text.replace(' ', '') == '/exit':
         await state.finish()
         await message.answer('Отменено!')
         return -1
@@ -83,18 +76,15 @@ async def add_username(message : types.Message,state:FSMContext):
         db.add_password(user_id, password)
         db.add_account(user_id)
         db.commit()
-        await bot.send_message(user_id, 'Успешно!', reply_markup = main_menu)
+        await bot.send_message(user_id, 'Успешно!', reply_markup=main_menu)
         await state.finish()
-
-
-        
 
 
 async def check_unreads(message):
     await message.answer('Пожалуйста подождите...')
     user_id = message.from_user.id
-    if(not db.account_exists(user_id)):
-        await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup = cng_acc_menu)
+    if (not db.account_exists(user_id)):
+        await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup=cng_acc_menu)
         return -1
 
     parser = Parser(user_id, db)
@@ -105,26 +95,26 @@ async def check_unreads(message):
         answer = ''
         for unread in l:
             answer += unread + '\n'
-        await bot.send_message(message.from_user.id, answer, parse_mode = 'HTML')
+        await bot.send_message(message.from_user.id, answer, parse_mode='HTML')
     del parser
 
 
-
-@dp.message_handler(commands = ['start'])
-async def start_work(message : types.Message):
+@dp.message_handler(commands=['start'])
+async def start_work(message: types.Message):
     user_id = message.from_user.id
-    if(not db.user_exists(user_id)):
+    if (not db.user_exists(user_id)):
         try:
             db.add_user(user_id)
         except:
             await message.answer("Ошибка...")
             return -1
-        await bot.send_message(user_id, 'Добро пожаловать!', reply_markup = main_menu)
+        await bot.send_message(user_id, 'Добро пожаловать!', reply_markup=main_menu)
     else:
-        await bot.send_message(user_id, "Вы уже вошли...", reply_markup = main_menu)
+        await bot.send_message(user_id, "Вы уже вошли...", reply_markup=main_menu)
 
-@dp.message_handler(commands = ['support'])
-async def show_supports(message : types.Message):
+
+@dp.message_handler(commands=['support'])
+async def show_supports(message: types.Message):
     res = """
     При возникновении проблем
 или при наличии предложений пишите сюда:
@@ -136,58 +126,50 @@ async def show_supports(message : types.Message):
 
 async def show_books(message):
     user_id = message.from_user.id
-    if(not db.account_exists(user_id)):
-        await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup = cng_acc_menu)
+    if (not db.account_exists(user_id)):
+        await bot.send_message(user_id, 'Вы не добавили аккаунт!', reply_markup=cng_acc_menu)
         return -1
 
     await message.answer('Пожалуйста подождите...')
-    parser = Parser(user_id,db)
+    parser = Parser(user_id, db)
     bookmarks = parser.get_html_bookmarks()
     splited_bookmarks = split_list(bookmarks, 35)
     for l in splited_bookmarks:
         answer = ''
         for book in l:
             answer += book
-        await bot.send_message(message.from_user.id, answer, parse_mode = "HTML")
+        await bot.send_message(message.from_user.id, answer, parse_mode="HTML")
     del parser
 
+
 async def show_menu(message):
-    await bot.send_message(message.from_user.id, "Меню:", reply_markup =main_menu)
+    await bot.send_message(message.from_user.id, "Меню:", reply_markup=main_menu)
+
 
 async def show_settings(message):
-    await bot.send_message(message.from_user.id, "Настройки:", reply_markup =settings_menu)
-
+    await bot.send_message(message.from_user.id, "Настройки:", reply_markup=settings_menu)
 
 
 command_switch = {
-    '/changeAccount' : add_account,
+    '/changeAccount': add_account,
     '📝 Изменить аккаунт': add_account,
     '/checkUnreads': check_unreads,
-    '📒 Вывести недочитанные' : check_unreads,
+    '📒 Вывести недочитанные': check_unreads,
     '🔖 Вывести закладки': show_books,
-    '/menu' : show_menu,
+    '/menu': show_menu,
     '📋 Меню': show_menu,
     '⚙️ Настройки': show_settings,
     '/settings': show_settings,
 }
 
+
 @dp.message_handler()
-async def handle(message : types.Message):
+async def handle(message: types.Message):
     try:
         await command_switch[message.text](message)
     except KeyError:
         pass
 
 
-
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
-    executor.start_polling(dp,skip_updates=True)
+    executor.start_polling(dp, skip_updates=True)
